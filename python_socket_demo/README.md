@@ -12,7 +12,4 @@ datastore, and then the client retrieves the post data from the datastore.
 This simple app does no caching or entity reuse, but could easily be extended
 to do so.
 
-This app will not run locally using the dev app server; it must be deployed.
 
-Before you can successfully deploy the app, your app id must be whitelisted as
-a Socket API Trusted Tester app.

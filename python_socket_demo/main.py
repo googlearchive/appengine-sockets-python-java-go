@@ -1,18 +1,4 @@
-#!/usr/bin/env python
-#
-# Copyright 2012 Google Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+#!/usr/bin/python
 
 """ A demo app that shows use of the App Engine Socket API, via the nntplib
 module. The nntp server object is created (and the socket connection opened) in
@@ -30,19 +16,16 @@ import cgi
 import json
 import logging
 import nntplib
-import os
 import uuid
-import urllib
 import wsgiref
 
+from base_handler import BaseHandler
+
 from google.appengine.api import channel
-from google.appengine.ext.deferred import defer
 from google.appengine.ext import ndb
 from google.appengine.ext import webapp
-from google.appengine.ext.webapp import template
-from google.appengine.ext.webapp.util import run_wsgi_app
+from google.appengine.ext.deferred import defer
 
-from base_handler import BaseHandler
 
 class PostData(ndb.Model):
   """Holds retrieved newsgroup post information, to send to the client.
@@ -65,35 +48,35 @@ def parseRootParams(request):
   return params
 
 
-def fetch_posts(s, newsgroup, first, last, cid):
+def fetch_posts(s, newsgroup, last, cid):
   """Fetch newsgroups posts, using the given nntp object s."""
-  NUM_POSTS = 10 # we will fetch the last 10 posts (at most)
+  NUM_POSTS = 10  # we will fetch the last 10 posts (at most)
   try:
     start = str(int(last) - NUM_POSTS)
-    resp, items = s.xover(start, last)
+    _, items = s.xover(start, last)
     posts = []
-    for (article_id, subject, author, date, message_id, references,
-         size, lines) in items:
-      resp, id, message_id, text = s.article(article_id)
+    for (article_id, subject, author, _, _, _,
+         _, _) in items:
+      _, _, _, text = s.article(article_id)
       article = []
       for l in text:
         try:
           article.append(l.decode('utf-8', errors='ignore'))
-        except UnicodeDecodeError, e:
-          logging.exception("error on: %s", l)
+        except UnicodeDecodeError:
+          logging.exception('error on: %s', l)
 
       post_info = [article_id, author.decode('utf-8', errors='ignore'),
-          subject.decode('utf-8', errors='ignore'), len(text), article]
+                   subject.decode('utf-8', errors='ignore'), len(text), article]
       posts.append(post_info)
     if posts:
       pd = PostData(posts=posts)
       pd.put()
       pid = pd.key.id()
-      logging.info("pid: %s", pid)
-      channel.send_message(cid, json.dumps({'pid': pid,
-        'newsgroup': newsgroup}))
-  except Exception, e:
-    logging.exception("something went wrong...")
+      logging.debug('pid: %s, cid: %s', pid, cid)
+      channel.send_message(cid, json.dumps(
+          {'pid': pid, 'newsgroup': newsgroup}))
+  except:
+    logging.exception('Something went wrong...')
 
 
 class IndexHandler(BaseHandler):
@@ -104,7 +87,8 @@ class IndexHandler(BaseHandler):
     token = channel.create_channel(cid)
     app_url = wsgiref.util.application_uri(self.request.environ)
     self.render_template('index.html', {'token': token, 'cid': cid,
-        'app_url': app_url})
+                                        'app_url': app_url})
+
 
 class GetPostsInfoHandler(BaseHandler):
   """This handler is called when the client is notified, via the channel api
@@ -115,12 +99,12 @@ class GetPostsInfoHandler(BaseHandler):
     """Returns a json object containing the posts details in html format."""
     pid = cgi.escape(self.request.get('pid'))
     newsgroup = cgi.escape(self.request.get('newsgroup'))
-    logging.info("got pid: %s", pid)
+    logging.info('got pid: %s', pid)
     try:
       # get the entity with the post information.
       pd = PostData.get_by_id(int(pid))
     except Exception, e:
-      logging.exception("something went wrong...")
+      logging.exception("Something went wrong...")
       self.render_json({'status': 'ERROR', 'error': str(e)})
       return
     # use templating to generate an html string with the post details
@@ -128,6 +112,7 @@ class GetPostsInfoHandler(BaseHandler):
     pstring = self.jinja2.render_template('posts.html', **template_args)
     # return a json object with the results.
     self.render_json({'status': 'OK', 'pstring': pstring})
+
 
 class FetchPostHandler(BaseHandler):
   """Get summary information about a newsgroup, and enqueue a task to fetch
@@ -137,31 +122,30 @@ class FetchPostHandler(BaseHandler):
     self.getPosts(parseRootParams(self.request))
 
   def getPosts(self, params):
-
+    """Get summary information about a newsgroup, and enqueue a task to fetch
+  some posts from that newsgroup."""
     newsgroup = cgi.escape(params['newsgroup'])
     cid = params['cid']
-    logging.info("got newsgroup: %s", newsgroup)
+    logging.info('got newsgroup: %s', newsgroup)
     if not newsgroup:
-      self.response.out.write("Could not get newsgroup.")
+      self.response.out.write('Could not get newsgroup.')
       return
 
-    token = None
-    res_message = ""
     try:
-      NNTP_SERVER = "news.mixmin.net"
+      NNTP_SERVER = 'news.mixmin.net'
       # get an nntp server object
       s = nntplib.NNTP(NNTP_SERVER)
       # get information about the given newsgroup
       resp, count, first, last, name = s.group(newsgroup)
-      res_msg = ("resp, count, first, last, name: %s, %s, %s, %s, %s" % (resp,
-          count, first, last, name))
+      res_msg = ('resp, count, first, last, name: %s, %s, %s, %s, %s' % (
+          resp, count, first, last, name))
       logging.info(res_msg)
       # enqueue a task to fetch some posts from that newsgroup.  Include the
       # nntp object as part of the task payload.
-      defer(fetch_posts, s, newsgroup, first, last, cid)
+      defer(fetch_posts, s, newsgroup, last, cid)
 
     except Exception, e:
-      logging.exception("something went wrong...")
+      logging.exception('something went wrong...')
       self.render_json({'status': 'ERROR', 'error': str(e)})
       return
 
@@ -174,9 +158,3 @@ application = webapp.WSGIApplication([
     ('/get_posts_info', GetPostsInfoHandler)
 ], debug=True)
 
-
-def main():
-  run_wsgi_app(application)
-
-if __name__ == '__main__':
-  main()
