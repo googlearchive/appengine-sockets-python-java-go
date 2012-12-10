@@ -1,0 +1,30 @@
+
+{% if posts %}
+ <p>Newsgroup '<b>{{newsgroup}}</b>' articles (click on an article to see its contents):</p>
+ {% set count = 0 %}
+ {% for post_info in posts %}
+   <div class="post" id="post{{count}}" style="padding: 10px;">
+   <b>Article number</b>: {{post_info.0}}; <b>author</b>: {{post_info.1}}; <b>subject</b>: {{post_info.2}}; <b>article length</b>: {{post_info.3}}<br/>
+   <div id="art{{count}}" style="display:none; background:#FFFFFF;">
+     Article body: <br/>
+     {% for l in post_info.4 %}
+      {{l}}<br/>
+     {% endfor %}
+   </div>
+ </div>
+    <script type="text/javascript">
+     $('#post{{count}}').hover(function() {
+      $('#post{{count}}').toggleClass('over');
+      });
+     $('#post{{count}}').click(function() {
+      $('#art{{count}}').show('slow', function() {
+       });
+      $('#post{{count}}').click(function() {
+        $('#art{{count}}').hide('slow', function() {
+       });
+      });
+    });
+   </script>
+ {% set count = count + 1 %}
+ {% endfor %}
+{% endif %}

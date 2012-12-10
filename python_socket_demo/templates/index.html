@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block head %}
+  <script type="text/javascript" src="/_ah/channel/jsapi"></script>
+  <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+  <script type="text/javascript">google.load("jquery", "1"); google.load("jqueryui", "1");</script>
+  <style type="text/css">
+    div.post {background: #DCE4EA; margin: 2px; border: 1px dotted #666;}
+    div.over {background: #E8EEF7;}
+  </style>
+{% endblock %}
+
+{% block body %}
+
+  <script type="text/javascript">
+
+var hostname_ = "{{app_url}}"
+
+  function getPosts() {
+
+    var newsgroup = $("#newsgroup").val();
+
+    ajax_data = {
+      newsgroup: newsgroup,
+      cid: '{{cid}}'
+    };
+
+    $.ajax({
+      url: hostname_ + "get_posts",
+      success: function (data) {
+        if (data.status == 'OK') {
+          $('#posts').html('Post fetching in progress....<br/>' + data.msg);
+        }
+        else {
+          alert(JSON.stringify(data));
+        }
+      },
+      data: ajax_data,
+      dataType: "jsonp"
+    });
+  }
+
+  function displayPosts(pid, newsgroup) {
+    ajax_data = {
+      pid: pid,
+      newsgroup: newsgroup
+    };    
+    $.ajax({
+      url: hostname_ + "get_posts_info",
+      success: function (data) {
+        if (data.status == 'OK') {
+          $('#posts').html(data.pstring);
+        }
+        else {
+          alert("there was an error.");
+        }
+      },
+      data: ajax_data,
+      dataType: "jsonp"
+    });
+  }
+
+    // channel api management
+    function onOpened() {
+      connected = true;
+      window.alert('connected to server');
+    }
+
+    function onClosed() {
+      window.alert('channel connection closed.');
+    }
+
+    function onMessage(m) {
+      var newMessage;
+      newMessage = JSON.parse(m.data);
+      displayPosts(newMessage.pid, newMessage.newsgroup);
+    }
+
+    /**
+     * Opens a Channel.
+     */
+    function openChannel(token) {
+      var channel, handler, socket;
+
+      channel = new goog.appengine.Channel(token);
+      handler = {
+        'onopen': onOpened,
+        'onmessage': onMessage,
+        'onerror': function () {},
+        'onclose': function () {alert("channel closed.")}
+      };
+      socket = channel.open(handler);
+      socket.onopen = onOpened;
+      socket.onclose = onClosed;
+      socket.onmessage = onMessage;
+    }
+
+  </script>
+
+
+<h2>App Engine Socket Demo: NNTP</h2>
+
+<form id="root_form" action="/" method="post">
+ <label for="newsgroup">Newsgroup: </label>
+ <select id="newsgroup" name="newsgroup">
+  <option value="sci.physics">sci.physics</option>
+  <option value="sci.archaeology">sci.archaeology</option>
+  <option value="sci.anthropology.paleo">sci.anthropology.paleo</option>
+  <option value="sci.environment">sci.environment</option>
+  <option value="sci.math">sci.math</option>
+  <option value="sci.lang">sci.lang</option>
+  <option value="soc.culture.british">soc.culture.british</option>
+ </select>
+<input type="button" onclick="getPosts()" value="get newsgroup info" />
+
+<script type="text/javascript">
+  openChannel('{{token}}');
+</script>
+
+<div id="posts">
+</div>
+
+
+
+{% endblock %}
