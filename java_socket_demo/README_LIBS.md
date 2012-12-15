@@ -33,9 +33,9 @@ with these caveats:
 <a href="http://www.oracle.com/technetwork/java/javamail/index-138643.html">JavaMail</a>
   1.4.5 is compatible with App Engine but requires a work-around to
   resolve the issue of
-  <a href="/appengine/docs/java/runtime?hl=en#jar_ordering">class loader
+  <a href="http://developers.google.com/appengine/docs/java/runtime?hl=en#jar_ordering">class loader
   ordering</a>.  Currently, there are JavaMail classes in the `appengine-api.jar`, which is scanned
   before all other JAR files.  This causes the wrong `javax.mail` classes  to be loaded.  The work-around is to unzip the JavaMail 1.4.5
-  `mailapi.jar` file (excluding the `META-INF/MANIFEST.MF`   file) into the `WEB-INF/classes` directory. This causes the correct
+  `mailapi.jar` file (excluding the `META-INF/MANIFEST.MF` file) into the `WEB-INF/classes` directory. This causes the correct
   classes to be loaded before those in `appengine-api.jar`.
 
