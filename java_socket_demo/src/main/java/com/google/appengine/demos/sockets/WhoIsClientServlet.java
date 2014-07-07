@@ -10,6 +10,10 @@ import java.util.logging.Logger;
 
 import javax.servlet.http.*;
 
+import org.jsoup.Jsoup;
+import org.jsoup.safety.Whitelist;
+
+
 
 /**
  * This simple example uses the Socket API to access a WHOIS server and query
@@ -45,7 +49,10 @@ public class WhoIsClientServlet extends HttpServlet {
 
   @Override
   public void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+
     String name = getParam(req, "name", "google.com");
+    // use jsoup to sanitize the name, since it will be output
+    name = Jsoup.clean(name, Whitelist.basic());
     String server = getParam(req, "server", DEFAULT_SERVER);
     int port = Integer.parseInt(getParam(req, "port", Integer.toString(DEFAULT_PORT)));
 
